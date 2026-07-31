@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Web-based MCDM Decision Model</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --panel: #ffffff;
+      --border: #d7dce4;
+      --text: #20242a;
+      --muted: #667085;
+      --primary: #155eef;
+      --primary-dark: #004ee0;
+      --success: #217346;
+      --danger: #b42318;
+      --warning: #9a6700;
+      --soft: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 14px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .app {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      margin-bottom: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      min-width: 0;
+    }
+
+    .controls {
+      padding: 14px;
+      align-self: start;
+    }
+
+    .controls h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .form-row {
+      margin-bottom: 10px;
+    }
+
+    .form-row label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    button {
+      font: inherit;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 8px 9px;
+      border: 1px solid #aeb7c2;
+      border-radius: 6px;
+      background: white;
+      font-size: 13px;
+    }
+
+    button {
+      padding: 9px 13px;
+      border: 1px solid #8c96a3;
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    button:hover {
+      background: #f2f4f7;
+    }
+
+    button.primary {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+      font-weight: bold;
+    }
+
+    button.primary:hover {
+      background: var(--primary-dark);
+    }
+
+    button.success {
+      border-color: var(--success);
+      background: var(--success);
+      color: white;
+      font-weight: bold;
+    }
+
+    button.success:hover {
+      filter: brightness(0.94);
+    }
+
+    button:disabled,
+    input:disabled,
+    select:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .file-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .file-name {
+      min-height: 36px;
+      padding: 9px;
+      overflow: hidden;
+      border: 1px solid #aeb7c2;
+      border-radius: 6px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .button-grid .wide {
+      grid-column: 1 / -1;
+    }
+
+    .group {
+      margin: 12px 0;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #fbfcfd;
+    }
+
+    .group-title {
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .criteria-list {
+      max-height: 225px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: white;
+    }
+
+    .criterion-item {
+      width: 100%;
+      padding: 7px 9px;
+      border: 0;
+      border-bottom: 1px solid #edf0f4;
+      border-radius: 0;
+      background: white;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    .criterion-item.active {
+      background: #eaf0ff;
+      color: #0f3ea8;
+      font-weight: bold;
+    }
+
+    .status {
+      min-height: 190px;
+      max-height: 300px;
+      margin-top: 11px;
+      padding: 9px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0f172a;
+      color: #d1fae5;
+      font: 11px/1.45 Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    .workspace {
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 8px 8px 0;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      background: #eef2f7;
+    }
+
+    .tab-button {
+      padding: 10px 16px;
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: 7px 7px 0 0;
+      background: transparent;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .tab-button.active {
+      border-color: var(--border);
+      background: white;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 13px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .chart-card {
+      min-width: 0;
+    }
+
+    .chart-card.full {
+      grid-column: 1 / -1;
+    }
+
+    .chart-title {
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 360px;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: white;
+    }
+
+    .table-title {
+      margin: 12px 0 6px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .table-wrap {
+      max-height: 500px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    th,
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #eef2f7;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    .editable-table input,
+    .editable-table select {
+      min-width: 90px;
+      padding: 5px 6px;
+      border: 1px solid #bcc4cf;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .editable-table input[type="checkbox"] {
+      min-width: auto;
+    }
+
+    .matrix-wrap {
+      max-height: 435px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+    }
+
+    .matrix-wrap th:first-child,
+    .matrix-wrap td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: #f8fafc;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(370px, 0.8fr);
+      gap: 12px;
+    }
+
+    .weight-table-wrap {
+      max-height: 480px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+    }
+
+    .note {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .footer {
+      margin-top: 10px;
+      color: var(--muted);
+      text-align: right;
+      font-size: 10px;
+    }
+
+    @media (max-width: 1150px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 7px;
+      }
+
+      .two-col,
+      .button-grid,
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .button-grid .wide,
+      .chart-card.full {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <header class="header">
+    <h1>Web-based Multi-Criteria Decision-Making Model</h1>
+
+    <p>
+      Decision-matrix analysis with SAW, CODAS, COPRAS,
+      TOPSIS, Grey Relational Analysis, PROMETHEE,
+      five normalization methods, aggregate ranking,
+      CRITIC weights, Entropy weights, editable input tables,
+      charts, and Excel export.
+    </p>
+  </header>
+
+  <main class="layout">
+
+    <aside class="panel controls">
+
+      <h2>Controls</h2>
+
+      <div class="form-row">
+        <label>Input file</label>
+
+        <div class="file-row">
+          <div id="fileName" class="file-name">
+            (not selected)
+          </div>
+
+          <button id="loadButton" type="button">
+            Load Excel / CSV
+          </button>
+        </div>
+
+        <input
+          id="fileInput"
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          hidden
+        >
+      </div>
+
+      <div class="two-col">
+
+        <div class="form-row">
+          <label for="sheetSelect">Worksheet</label>
+
+          <select id="sheetSelect" disabled>
+            <option value="">
+              Select a workbook first
+            </option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label for="methodSelect">
+            Calculation method
+          </label>
+
+          <select id="methodSelect">
+            <option value="SAW">SAW</option>
+            <option value="CODAS">CODAS</option>
+            <option value="COPRAS">COPRAS</option>
+            <option value="TOPSIS-SC">TOPSIS-SC</option>
+            <option value="TOPSIS-Eu">TOPSIS-Eu</option>
+            <option value="TOPSIS-Inf">TOPSIS-Inf</option>
+            <option value="GRAt">GRAt</option>
+            <option value="PROMETHEE">PROMETHEE</option>
+            <option value="All_methods">All methods</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="button-grid">
+
+        <button id="demoButton" type="button">
+          Load Built-in Demo
+        </button>
+
+        <button id="templateButton" type="button">
+          Download Excel Template
+        </button>
+
+        <button
+          id="calculateButton"
+          class="primary wide"
+          type="button"
+          disabled
+        >
+          Calculate Ranking
+        </button>
+
+        <button
+          id="weightsButton"
+          type="button"
+          disabled
+        >
+          CRITIC / Entropy Weights
+        </button>
+
+        <button
+          id="exportButton"
+          class="success"
+          type="button"
+          disabled
+        >
+          Export Results Excel
+        </button>
+
+        <button
+          id="resetButton"
+          type="button"
+          disabled
+        >
+          Reset Results
+        </button>
+
+      </div>
+
+      <div class="group">
+        <div class="group-title">Extra output</div>
+
+        <select id="extraOutput" disabled>
+          <option value="">Choose output...</option>
+          <option value="Max">Max normalization ranks</option>
+          <option value="Sum">Sum normalization ranks</option>
+          <option value="Vector">Vector normalization ranks</option>
+          <option value="Max-Min">Max-Min normalization ranks</option>
+          <option value="DEA">DEA normalization ranks</option>
+          <option value="Alt ranks">Alternative rank probabilities</option>
+          <option value="Rank score">Aggregate rank score</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Criteria filter and highlight</div>
+
+        <input
+          id="criteriaFilter"
+          type="text"
+          placeholder="Type to filter criteria..."
+          disabled
+        >
+
+        <div id="criteriaList" class="criteria-list"></div>
+      </div>
+
+      <div id="statusBox" class="status">
+Load an Excel/CSV file or use the built-in demo.
+      </div>
+
+    </aside>
+
+    <section class="panel workspace">
+
+      <div class="tabs">
+
+        <button class="tab-button active" data-tab="rankingTab" type="button">
+          Ranking
+        </button>
+
+        <button class="tab-button" data-tab="inputTab" type="button">
+          Input Tables
+        </button>
+
+        <button class="tab-button" data-tab="weightsTab" type="button">
+          CRITIC / Entropy
+        </button>
+
+        <button class="tab-button" data-tab="extraTab" type="button">
+          Extra Output
+        </button>
+
+      </div>
+
+      <div id="rankingTab" class="tab-content active">
+
+        <div class="chart-grid">
+
+          <article class="chart-card">
+            <div class="chart-title">
+              Ranking summary
+            </div>
+
+            <div class="chart-wrap">
+              <canvas id="summaryChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">
+              Ordered alternatives
+            </div>
+
+            <div class="chart-wrap">
+              <canvas id="detailChart"></canvas>
+            </div>
+          </article>
+
+        </div>
+
+        <div class="table-title">Ranking results</div>
+
+        <div class="table-wrap">
+          <table id="rankingTable">
+            <thead>
+              <tr>
+                <th>Alternative</th>
+                <th>Final Rank</th>
+                <th>Average Rank</th>
+                <th>Rank Sum</th>
+                <th>Rank I (%)</th>
+                <th>Rank II (%)</th>
+                <th>Rank III (%)</th>
+              </tr>
+            </thead>
+
+            <tbody></tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <div id="inputTab" class="tab-content">
+
+        <div class="settings-grid">
+
+          <section>
+            <div class="table-title">
+              Decision matrix – alternatives × criteria
+            </div>
+
+            <div class="matrix-wrap">
+              <table id="matrixTable" class="editable-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section>
+            <div class="table-title">
+              Criterion settings
+            </div>
+
+            <div class="table-wrap">
+              <table id="criteriaTable" class="editable-table">
+                <thead>
+                  <tr>
+                    <th>Criterion</th>
+                    <th>Weight</th>
+                    <th>Type</th>
+                    <th>Available</th>
+                  </tr>
+                </thead>
+
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+        </div>
+
+        <p class="note">
+          Values, criterion weights, positive/negative attribution,
+          and availability can be edited before calculation.
+          Disabled criteria and zero-weight criteria are excluded.
+        </p>
+
+      </div>
+
+      <div id="weightsTab" class="tab-content">
+
+        <div class="chart-grid">
+
+          <article class="chart-card">
+            <div class="chart-title">
+              CRITIC weights by normalization method
+            </div>
+
+            <div class="chart-wrap">
+              <canvas id="criticChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">
+              Entropy weights by normalization method
+            </div>
+
+            <div class="chart-wrap">
+              <canvas id="entropyChart"></canvas>
+            </div>
+          </article>
+
+        </div>
+
+        <div class="table-title">Weight values</div>
+
+        <div class="weight-table-wrap">
+          <table id="weightsTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <div id="extraTab" class="tab-content">
+
+        <div class="chart-card full">
+          <div id="extraTitle" class="chart-title">
+            Select an extra output from the left panel.
+          </div>
+
+          <div class="chart-wrap">
+            <canvas id="extraChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <div class="footer">
+    Copyright ©2026 by portlogistics.vn –
+    E: info@portlogistics.vn
+  </div>
+
+</div>
+
+<script src="./js/config.js"></script>
+<script src="./js/app.js"></script>
+
+
+</body>
+</html>
