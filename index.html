@@ -438,8 +438,8 @@
     .backend .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); }
     .backend .dot.ok { background: var(--success); }
     .backend .dot.bad { background: var(--danger); }
-    .backend select { font-size: 12px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); }
-    @media (max-width: 520px) { .backend select { max-width: 120px; } }
+    .backend-unused-select { font-size: 12px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); }
+    @media (max-width: 520px) { .backend-unused-select { max-width: 120px; } }
   </style>
 </head>
 
@@ -451,12 +451,7 @@
     <div class="header-top">
       <h1>Web-based Multi-Criteria Decision-Making Model</h1>
       <span class="backend">
-        <span class="dot" id="backendDot"></span><span id="backendText">Connecting&hellip;</span>
-        <select id="backendSelect" aria-label="Backend server" title="Choose calculation server (adds ?api= to the address)">
-          <option value="auto">Auto (Home &rarr; Render)</option>
-          <option value="home">Home server</option>
-          <option value="render">Render</option>
-        </select>
+        <span class="dot" id="backendDot"></span><span id="backendText">Loading&hellip;</span>
       </span>
     </div>
 
@@ -788,8 +783,8 @@ Load an Excel/CSV file or use the built-in demo.
 
 </div>
 
-<script src="./js/config.js?v=202610221830"></script>
-<script src="./js/app.js?v=202610221830"></script>
+<script src="./js/mcdm-engine.js?v=202610241000"></script>
+<script src="./js/app.js?v=202610241000"></script>
 
 
 </body>

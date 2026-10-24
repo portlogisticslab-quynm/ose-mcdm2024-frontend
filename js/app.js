@@ -840,11 +840,9 @@ calculateButton.addEventListener("click", async () => {
     if (!state.model) throw new Error("Load a matrix first.");
     const prepared = prepareActiveModel();
     const method = methodSelect.value;
-    setStatus(`Calculating ${method} on ${await backendName()}...`);
-    const response=await window.oseFetch("/api/ranking",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({prepared,method})});
-    const payload=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(payload.detail||`Backend error ${response.status}`);
-    state.ranking=payload.ranking; renderRanking(); exportButton.disabled=false; extraOutput.disabled=false; resetButton.disabled=false; openTab("rankingTab"); setStatus(buildRankingSummary(state.ranking));
+    setStatus(`Calculating ${method} in your browser...`);
+    await nextFrame();
+    state.ranking=runEngine("calculateRanking",prepared,method); renderRanking(); exportButton.disabled=false; extraOutput.disabled=false; resetButton.disabled=false; openTab("rankingTab"); setStatus(buildRankingSummary(state.ranking));
   } catch(error) { setStatus(`Calculation error: ${error.message}`); }
 });
 
@@ -2277,11 +2275,9 @@ function buildRankingSummary(ranking) {
 
 weightsButton.addEventListener("click", async () => {
   try {
-    const prepared=prepareActiveModel(); setStatus(`Calculating CRITIC / Entropy weights on ${await backendName()}...`);
-    const response=await window.oseFetch("/api/weights",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({prepared})});
-    const payload=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(payload.detail||`Backend error ${response.status}`);
-    state.weightsResult=payload.weights; renderWeights(); exportButton.disabled=false; openTab("weightsTab"); setStatus(buildWeightsSummary(state.weightsResult));
+    const prepared=prepareActiveModel(); setStatus("Calculating CRITIC / Entropy weights in your browser...");
+    await nextFrame();
+    state.weightsResult=runEngine("calculateObjectiveWeights",prepared); renderWeights(); exportButton.disabled=false; openTab("weightsTab"); setStatus(buildWeightsSummary(state.weightsResult));
   } catch(error) { setStatus(`Weight calculation error: ${error.message}`); }
 });
 
@@ -3693,40 +3689,26 @@ function setStatus(text) {
 disableModelControls();
 
 // ============================================================
-// BACKEND SELECTOR: Auto (Home -> Render) / Home / Render
+// CALCULATION ENGINE: runs in the browser (js/mcdm-engine.js), no backend
 // ============================================================
 
-async function backendName() {
-  const base = String(await window.OSE_API_READY || "");
-  return base.includes("onrender.com")
-    ? "Render (first call may take 30-60 s)"
-    : (["localhost", "127.0.0.1"].includes(location.hostname) ? "local backend" : "home server");
+/* Same input/output as the former /api/ranking and /api/weights:
+   the JSON round-trip keeps results identical (NaN/Infinity -> null). */
+function runEngine(fn, ...args) {
+  if (!window.MCDMEngine) throw new Error("Calculation engine not loaded (js/mcdm-engine.js). Reload the page.");
+  const input = args.map((a) => (a && typeof a === "object" ? JSON.parse(JSON.stringify(a)) : a));
+  return JSON.parse(JSON.stringify(window.MCDMEngine[fn](...input)));
 }
 
-(async function initBackend() {
-  const sel = document.getElementById("backendSelect");
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
+(function initEngineBadge() {
   const dot = document.getElementById("backendDot");
   const txt = document.getElementById("backendText");
-  if (!sel || !dot || !txt) return;
-  const local = ["localhost", "127.0.0.1"].includes(location.hostname);
-  if (local) sel.hidden = true;
-  let pinned = new URLSearchParams(location.search).get("api");
-  try { pinned = pinned || localStorage.getItem("ose_api"); } catch (e) {}
-  sel.value = ["home", "render"].includes(pinned) ? pinned : "auto";
-  sel.onchange = () => { const u = new URL(location.href); u.searchParams.set("api", sel.value); location.href = u.toString(); };
-  const base = String(await window.OSE_API_READY || "");
-  const name = base.includes("onrender.com") ? "Render" : (local ? "Local" : "Home server");
-  const t0 = performance.now();
-  try {
-    const res = await window.oseFetch("/api/health", { cache: "no-store" });
-    const h = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(String(res.status));
-    const served = res.headers.get("x-served-by");
-    const label = served === "render" && name === "Home server" ? "Render (failover)" : name;
-    dot.className = "dot ok";
-    txt.textContent = `${label} \u00b7 v${h.version || "?"} \u00b7 ${Math.round(performance.now() - t0)} ms`;
-  } catch (e) {
-    dot.className = "dot bad";
-    txt.textContent = `${name} \u00b7 offline`;
-  }
+  if (!dot || !txt) return;
+  const ok = !!window.MCDMEngine;
+  dot.className = ok ? "dot ok" : "dot bad";
+  txt.textContent = ok ? "Runs in your browser \u00b7 no server" : "Engine not loaded";
 })();
